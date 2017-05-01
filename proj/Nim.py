@@ -49,13 +49,17 @@ class Node:
     def __init__(self, player, opponent, a, b, c):
         self.player = player
         self.opponent = opponent
+        self.parent = None
         self.a = a
         self.b = b
         self.c = c
         self.adjacent = []
         self.color = "white"
         self.score = None
+        self.min_steps_to_p1_win = float('inf')
+        self.min_steps_to_p2_win = float('inf')
         self.assign_value()
+
 
     def toString(self):
         return format("%s - %d - %d - %d" % (self.player, self.a, self.b, self.c))
@@ -64,8 +68,15 @@ class Node:
         if (self.a == 0 and self.b == 0 and self.c == 0):
             if (self.player == "Paul"):
                 self.score = -1.0
+                self.min_steps_to_p2_win = 0.0
             else:
                 self.score = 1.0
+                self.min_steps_to_p1_win = 0.0
+    def set_parent(self,parent_node):
+        self.parent = parent_node
+
+    def get_parent(self):
+        return self.parent
 
 class NimDFS:
     @staticmethod
@@ -73,10 +84,13 @@ class NimDFS:
         index = NodeIndex(player1, player2, a_val, b_val, c_val)
         key = format("%s - %d - %d - %d" % (player1, a_val, b_val, c_val))
         root = index.grab_node(key)
+        root.set_parent(root)
         root.color = "gray"
         adjacents = index.grab_adjacent(root.toString())
+
         for adj in adjacents:
             if adj.color == "white":
+                adj.set_parent(root)
                 NimDFS.visit(adj, index)
         if not len(adjacents) == 0:
             if root.player == "Paul":
@@ -89,7 +103,11 @@ class NimDFS:
                     root.score = -1.0
                 else:
                     root.score = 1.0
-        return root.score
+            root.min_steps_to_p1_win = 1.0 + min(list(map((lambda x: x.min_steps_to_p1_win),adjacents)))
+            root.min_steps_to_p2_win = 1.0 + min(list(map((lambda x: x.min_steps_to_p2_win),adjacents)))
+
+        #depth_report = NimDFS.depth_of_win(root.score, index)
+        return {'score' : root.score, 'index' : index, 'min_steps_to_p1_win': root.min_steps_to_p1_win, 'min_steps_to_p2_win': root.min_steps_to_p2_win  }
 
     @staticmethod
     def visit(node, index):
@@ -97,6 +115,7 @@ class NimDFS:
         adjacents = index.grab_adjacent(node.toString())
         for adj in adjacents:
             if adj.color == "white":
+                adj.set_parent(node)
                 NimDFS.visit(adj, index)
         if not len(adjacents) == 0:
             if node.player == "Paul":
@@ -109,4 +128,23 @@ class NimDFS:
                     node.score = -1.0
                 else:
                     node.score = 1.0
+            node.min_steps_to_p1_win = 1.0 + min(list(map((lambda x: x.min_steps_to_p1_win),adjacents)))
+            node.min_steps_to_p2_win = 1.0 + min(list(map((lambda x: x.min_steps_to_p2_win),adjacents)))
         node.color = "black"
+
+    @staticmethod
+    def depth_of_win(winning_score, index):
+        if winning_score == -1.0:
+            key = "Paul - 0 - 0 - 0"
+        else:
+            key = "Carole - 0 - 0 - 0"
+        winning_node = index.grab_node(key)
+        depth = 0
+        moves = []
+        while winning_node.get_parent() != winning_node:
+            print(winning_node.toString())
+            moves.append(winning_node.toString())
+            winning_node = winning_node.get_parent()
+            depth += 1
+        print("First move: " + winning_node.toString())
+        return [depth, moves]
